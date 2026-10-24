@@ -29,6 +29,10 @@ npm run dev:web        # web app on http://localhost:3000 (second terminal)
 npm run day1           # PayPal sandbox checks, once credentials are in .env
 ```
 
+## Connect your own agent
+
+Any MCP-capable AI tool can shop a stall: see [docs/CONNECT-AN-AGENT.md](docs/CONNECT-AN-AGENT.md).
+
 ## PayPal surfaces
 
 | Surface | Used for |
