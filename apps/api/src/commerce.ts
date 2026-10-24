@@ -73,9 +73,10 @@ export class Commerce {
   constructor(
     public store: Store,
     readonly gateway: PayPalGateway,
-    private readonly options: { publicUrl: string; answerer?: SellerAnswerer },
+    private readonly options: { publicUrl: string; answerer?: SellerAnswerer; listen?: boolean },
   ) {
-    gateway.onEvent((event) => this.handlePayPalEvent(event));
+    // A stall registry dispatches events itself; standalone use (tests) subscribes directly.
+    if (options.listen !== false) gateway.onEvent((event) => this.handlePayPalEvent(event));
   }
 
   /**
@@ -161,7 +162,7 @@ export class Commerce {
     }
     const amount = (Number(product.price) * quantity).toFixed(2);
     const customId = agentCustomId(ctx.agent, ctx.sessionId);
-    const paypalOrder = await this.gateway.createOrder({
+    const orderInput = {
       amount,
       currency: product.currency,
       description: `${quantity} x ${product.title}`.slice(0, 127),
@@ -169,7 +170,13 @@ export class Commerce {
       card: input.paymentMethod === "sandbox_test_card" ? SANDBOX_TEST_CARD : undefined,
       returnUrl: `${this.options.publicUrl}/checkout/return`,
       cancelUrl: `${this.options.publicUrl}/checkout/cancel`,
-    });
+    };
+    const paypalOrder = await this.store.traced(
+      "paypal",
+      "Create order · POST /v2/checkout/orders",
+      { ...orderInput, card: orderInput.card ? "sandbox test card" : undefined },
+      () => this.gateway.createOrder(orderInput),
+    );
     const order = this.store.saveOrder({
       id: paypalOrder.id,
       productId: product.id,
@@ -207,7 +214,11 @@ export class Commerce {
   async captureApproved(orderId: string): Promise<Order> {
     const order = this.store.orders.get(orderId);
     if (!order) throw new Error(`No order ${orderId}`);
-    if (order.status === "awaiting_approval") await this.gateway.captureOrder(orderId);
+    if (order.status === "awaiting_approval") {
+      await this.store.traced("paypal", "Capture order · POST /v2/checkout/orders/{id}/capture", { orderId }, () =>
+        this.gateway.captureOrder(orderId),
+      );
+    }
     return order;
   }
 
@@ -219,12 +230,14 @@ export class Commerce {
     const order = orderId ? this.store.orders.get(orderId) : undefined;
     if (!order || order.status === "captured") return;
 
+    this.store.trace({ kind: "webhook", label: "PayPal event · PAYMENT.CAPTURE.COMPLETED", input: { eventId: event.id, orderId, captureId: resource.id }, output: { verified: this.gateway.mode === "sandbox" ? true : "mock event" } });
     order.status = "captured";
     order.captureId = resource.id;
     order.paypalEventId = event.id;
     order.updatedAt = now();
     const product = this.store.products.get(order.productId);
     if (product) product.stock = Math.max(0, product.stock - order.quantity);
+    this.store.dirty = true;
     this.store.logEvent({
       sessionId: order.sessionId,
       agent: order.agent,

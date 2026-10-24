@@ -39,7 +39,9 @@ export class StallKeeper implements SellerAnswerer {
     const key = `${normalise(question)}|${[...sources.keys()].join(",")}`;
     let pending = this.cache.get(key);
     if (!pending) {
-      pending = this.ask(question, sources);
+      pending = store.traced("ai", "Stall-keeper answers from seller facts", { question, sources: [...sources.keys()] }, () =>
+        this.ask(question, sources),
+      );
       this.cache.set(key, pending);
     }
     try {

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { type TraceEntry, type TraceKind, compact, currentRunId } from "./trace.js";
 
 export interface Seller {
   id: string;
@@ -27,6 +28,8 @@ export interface Product {
   /** Fields the extractor wasn't sure about; shown to the seller before publishing. */
   needsReview?: string[];
   sourceCaption?: string;
+  /** Link to the original social post the listing came from. */
+  sourcePermalink?: string;
 }
 
 /** A question the seller has answered once; every future agent gets the answer. */
@@ -93,9 +96,67 @@ export class Store {
   readonly questions = new Map<string, Question>();
   readonly orders = new Map<string, Order>();
   readonly events: AgentEvent[] = [];
+  readonly traces: TraceEntry[] = [];
+  /** Set on every change; the registry persists dirty stores. */
+  dirty = false;
 
   constructor(seller: Seller) {
     this.seller = seller;
+  }
+
+  /** Records one behind-the-scenes step. Kept to the latest 400 per stall. */
+  trace(entry: { kind: TraceKind; label: string; input?: unknown; output?: unknown; status?: "ok" | "error"; ms?: number }): TraceEntry {
+    const saved: TraceEntry = {
+      id: `t_${randomUUID().slice(0, 8)}`,
+      runId: currentRunId(),
+      at: now(),
+      kind: entry.kind,
+      label: entry.label,
+      input: compact(entry.input),
+      output: compact(entry.output),
+      status: entry.status ?? "ok",
+      ms: Math.round(entry.ms ?? 0),
+    };
+    this.traces.push(saved);
+    if (this.traces.length > 400) this.traces.splice(0, this.traces.length - 400);
+    this.dirty = true;
+    return saved;
+  }
+
+  /** Times `fn` and records it as a trace, including failures. */
+  async traced<T>(kind: TraceKind, label: string, input: unknown, fn: () => Promise<T>): Promise<T> {
+    const started = performance.now();
+    try {
+      const output = await fn();
+      this.trace({ kind, label, input, output, ms: performance.now() - started });
+      return output;
+    } catch (err) {
+      this.trace({ kind, label, input, output: { error: (err as Error).message }, status: "error", ms: performance.now() - started });
+      throw err;
+    }
+  }
+
+  toJSON() {
+    return {
+      seller: this.seller,
+      products: [...this.products.values()],
+      facts: [...this.facts.values()],
+      questions: [...this.questions.values()],
+      orders: [...this.orders.values()],
+      events: this.events.slice(-1000),
+      traces: this.traces,
+    };
+  }
+
+  static fromJSON(data: ReturnType<Store["toJSON"]>): Store {
+    const store = new Store(data.seller);
+    for (const p of data.products) store.products.set(p.id, p);
+    for (const f of data.facts) store.facts.set(f.id, f);
+    for (const q of data.questions) store.questions.set(q.id, q);
+    for (const o of data.orders) store.orders.set(o.id, o);
+    store.events.push(...data.events);
+    store.traces.push(...(data.traces ?? []));
+    return store;
   }
 
   publishedProducts(): Product[] {
@@ -105,18 +166,21 @@ export class Store {
   addProduct(product: Omit<Product, "id"> & { id?: string }): Product {
     const saved = { ...product, id: product.id ?? `p_${randomUUID().slice(0, 8)}` };
     this.products.set(saved.id, saved);
+    this.dirty = true;
     return saved;
   }
 
   addFact(question: string, answer: string): SellerFact {
     const fact = { id: `f_${randomUUID().slice(0, 8)}`, question, answer, createdAt: now() };
     this.facts.set(fact.id, fact);
+    this.dirty = true;
     return fact;
   }
 
   addQuestion(q: Omit<Question, "id" | "status" | "createdAt">): Question {
     const question: Question = { ...q, id: `q_${randomUUID().slice(0, 8)}`, status: "open", createdAt: now() };
     this.questions.set(question.id, question);
+    this.dirty = true;
     return question;
   }
 
@@ -133,11 +197,13 @@ export class Store {
   logEvent(e: Omit<AgentEvent, "id" | "at">): AgentEvent {
     const event = { ...e, id: `e_${randomUUID().slice(0, 8)}`, at: now() };
     this.events.push(event);
+    this.dirty = true;
     return event;
   }
 
   saveOrder(order: Order): Order {
     this.orders.set(order.id, order);
+    this.dirty = true;
     return order;
   }
 }

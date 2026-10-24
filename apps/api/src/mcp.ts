@@ -15,12 +15,15 @@ function json(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
 }
 
+/** Wraps a tool so every call is recorded as an "mcp" trace with the calling agent's name. */
+function traced<A>(commerce: Commerce, tool: string, agent: () => string, fn: (args: A) => Promise<unknown> | unknown) {
+  return async (args: A) => json(await commerce.store.traced("mcp", `${tool} · from ${agent()}`, args, async () => fn(args)));
+}
+
 function buildServer(commerce: Commerce, sessionId: () => string): McpServer {
   const server = new McpServer({ name: "agentstall", version: "0.1.0" });
-  const ctx = (): AgentContext => ({
-    sessionId: sessionId(),
-    agent: server.server.getClientVersion()?.name ?? "unknown-agent",
-  });
+  const agentName = () => server.server.getClientVersion()?.name ?? "unknown-agent";
+  const ctx = (): AgentContext => ({ sessionId: sessionId(), agent: agentName() });
   const seller = commerce.store.seller;
 
   server.registerTool(
@@ -36,8 +39,9 @@ function buildServer(commerce: Commerce, sessionId: () => string): McpServer {
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ query, max_price, ship_to, limit }) =>
-      json(commerce.search(ctx(), { query, maxPrice: max_price, shipTo: ship_to, limit })),
+    traced(commerce, "search_products", agentName, ({ query, max_price, ship_to, limit }: { query: string; max_price?: number; ship_to?: string; limit?: number }) =>
+      commerce.search(ctx(), { query, maxPrice: max_price, shipTo: ship_to, limit }),
+    ),
   );
 
   server.registerTool(
@@ -48,7 +52,7 @@ function buildServer(commerce: Commerce, sessionId: () => string): McpServer {
       inputSchema: { product_id: z.string() },
       annotations: { readOnlyHint: true },
     },
-    async ({ product_id }) => json(commerce.getProduct(ctx(), product_id)),
+    traced(commerce, "get_product", agentName, ({ product_id }: { product_id: string }) => commerce.getProduct(ctx(), product_id)),
   );
 
   server.registerTool(
@@ -59,7 +63,9 @@ function buildServer(commerce: Commerce, sessionId: () => string): McpServer {
         "Ask the seller a question (customs, sizing, materials, delivery dates...). Answers come only from what the seller has confirmed. If the status is 'unknown', the seller has not answered yet: do not guess.",
       inputSchema: { question: z.string().min(3).max(500), product_id: z.string().optional() },
     },
-    async ({ question, product_id }) => json(await commerce.askSeller(ctx(), question, product_id)),
+    traced(commerce, "ask_seller", agentName, ({ question, product_id }: { question: string; product_id?: string }) =>
+      commerce.askSeller(ctx(), question, product_id),
+    ),
   );
 
   server.registerTool(
@@ -77,8 +83,13 @@ function buildServer(commerce: Commerce, sessionId: () => string): McpServer {
           .describe("'paypal' (default) returns an approval link. 'sandbox_test_card' pays instantly with PayPal's sandbox test card, for demos."),
       },
     },
-    async ({ product_id, quantity, payment_method }) =>
-      json(await commerce.createCheckout(ctx(), { productId: product_id, quantity, paymentMethod: payment_method })),
+    traced(
+      commerce,
+      "create_checkout",
+      agentName,
+      ({ product_id, quantity, payment_method }: { product_id: string; quantity?: number; payment_method?: "paypal" | "sandbox_test_card" }) =>
+        commerce.createCheckout(ctx(), { productId: product_id, quantity, paymentMethod: payment_method }),
+    ),
   );
 
   server.registerTool(
@@ -89,7 +100,7 @@ function buildServer(commerce: Commerce, sessionId: () => string): McpServer {
       inputSchema: { order_id: z.string() },
       annotations: { readOnlyHint: true },
     },
-    async ({ order_id }) => json(await commerce.orderStatus(order_id)),
+    traced(commerce, "get_order_status", agentName, ({ order_id }: { order_id: string }) => commerce.orderStatus(order_id)),
   );
 
   return server;

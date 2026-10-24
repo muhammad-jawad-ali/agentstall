@@ -4,7 +4,7 @@ import type { ZodType } from "zod";
 import type { ChatTurn, Llm, Part, ToolCall } from "../src/ai/llm.js";
 import { StallKeeper } from "../src/ai/stallkeeper.js";
 import { createApp } from "../src/app.js";
-import { Commerce } from "../src/commerce.js";
+import { StallRegistry } from "../src/registry.js";
 import { seedDemoStore } from "../src/store.js";
 
 /** Scripted LLM: JSON replies come from `json`, tool-use steps from `steps` in order. */
@@ -27,11 +27,18 @@ class FakeLlm implements Llm {
 }
 
 function setup(llm: Llm) {
-  const commerce = new Commerce(seedDemoStore(), new MockGateway({ publicUrl: "http://t", eventDelayMs: 0 }), {
+  const registry = new StallRegistry(new MockGateway({ publicUrl: "http://t", eventDelayMs: 0 }), {
+    dbPath: ":memory:",
     publicUrl: "http://t",
     answerer: new StallKeeper(llm),
   });
-  return { commerce, app: createApp(commerce, { llm }) };
+  const { id, commerce } = registry.create();
+  const raw = createApp(registry, { llm });
+  const app = {
+    request: (path: string, init: RequestInit = {}) =>
+      raw.request(path, { ...init, headers: { ...(init.headers as Record<string, string>), "x-stall-id": id } }),
+  };
+  return { commerce, app };
 }
 
 const post = (body: unknown) => ({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
