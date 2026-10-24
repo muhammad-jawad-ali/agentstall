@@ -7,7 +7,8 @@ import { createApp } from "./app.js";
 import { StallRegistry } from "./registry.js";
 
 const port = Number(process.env.PORT ?? 8787);
-const publicUrl = process.env.PUBLIC_URL ?? `http://localhost:${port}`;
+// The public web origin. The web app proxies /checkout, /mock-paypal and /s/*/mcp to this API, so buyers stay on one site.
+const publicUrl = process.env.PUBLIC_URL ?? "http://localhost:3000";
 const gateway = gatewayFromEnv({ ...process.env, PUBLIC_URL: publicUrl });
 const llm = llmFromEnv();
 const dbPath = process.env.DATA_DIR

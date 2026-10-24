@@ -12,7 +12,7 @@ AgentStall turns a seller's product photos and captions into a store that any AI
 |---|---|
 | `packages/paypal` | `PayPalGateway` (sandbox + mock), Orders v2, webhook verification, agent attribution on `custom_id` |
 | `apps/api` | Hono service: public MCP endpoint `/mcp` for buyer agents (`search_products`, `get_product`, `ask_seller`, `create_checkout`, `get_order_status`), verified `POST /webhooks/paypal`, checkout return, seller read API |
-| `apps/web` | Next.js app: seller onboarding (`/sell`), Agent Desk with AG Grid (`/desk`), hosted Buyer Agent Console (`/console`). Proxies `/api` to the API service |
+| `apps/web` | Next.js app: seller wizard with Instagram import (`/sell`), chat-style shopping assistant (`/shop`), seller dashboard (`/stall`). A "Behind the scenes" switch shows every MCP, AI, PayPal and webhook step live |
 | `demo-photos` | Openly licensed demo product photos and captions ([credits](demo-photos/CREDITS.md)) |
 | `scripts/day1` | Sandbox verification checks (see [docs/DAY1.md](docs/DAY1.md)) |
 

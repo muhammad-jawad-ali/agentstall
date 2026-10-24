@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { InstagramConnection } from "./instagram.js";
 import { type TraceEntry, type TraceKind, compact, currentRunId } from "./trace.js";
 
 export interface Seller {
@@ -71,6 +72,16 @@ export interface AgentEvent {
   at: string;
 }
 
+export interface BatchRecord {
+  id: string;
+  at: string;
+  count: number;
+  purchased: number;
+  abandonedUnanswered: number;
+  /** How many facts the seller had taught when this batch ran. */
+  factsKnown: number;
+}
+
 export interface Order {
   id: string;
   productId: string;
@@ -97,6 +108,11 @@ export class Store {
   readonly orders = new Map<string, Order>();
   readonly events: AgentEvent[] = [];
   readonly traces: TraceEntry[] = [];
+  /** Results of "send test shoppers" batches, for the before/after comparison. */
+  readonly batches: BatchRecord[] = [];
+  instagram?: InstagramConnection;
+  /** OAuth state while an Instagram connection is in progress. */
+  instagramState?: string;
   /** Set on every change; the registry persists dirty stores. */
   dirty = false;
 
@@ -145,6 +161,8 @@ export class Store {
       orders: [...this.orders.values()],
       events: this.events.slice(-1000),
       traces: this.traces,
+      batches: this.batches.slice(-50),
+      instagram: this.instagram,
     };
   }
 
@@ -156,6 +174,8 @@ export class Store {
     for (const o of data.orders) store.orders.set(o.id, o);
     store.events.push(...data.events);
     store.traces.push(...(data.traces ?? []));
+    store.batches.push(...(data.batches ?? []));
+    store.instagram = data.instagram;
     return store;
   }
 

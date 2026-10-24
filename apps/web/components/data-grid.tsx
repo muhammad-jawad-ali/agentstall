@@ -11,7 +11,7 @@ import { AgGridProvider, AgGridReact } from "ag-grid-react";
 
 const modules = [ClientSideRowModelModule, TextFilterModule, QuickFilterModule];
 
-// Batik palette, shared with globals.css. AG Studio replaces these grids on 31 Oct.
+// Batik palette, shared with globals.css.
 const theme = themeQuartz.withParams({
   fontFamily: "var(--font)",
   accentColor: "var(--accent)",

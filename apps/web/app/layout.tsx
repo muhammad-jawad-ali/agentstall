@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
-import { StatusBar } from "./status-bar";
+import type { Metadata, Viewport } from "next";
+import { Providers } from "@/components/providers";
+import { Shell } from "@/components/shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,12 +8,15 @@ export const metadata: Metadata = {
   description: "Make social-only sellers buyable by any AI shopping agent, paid through PayPal.",
 };
 
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#b4532a" };
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <StatusBar />
-        {children}
+        <Providers>
+          <Shell>{children}</Shell>
+        </Providers>
       </body>
     </html>
   );

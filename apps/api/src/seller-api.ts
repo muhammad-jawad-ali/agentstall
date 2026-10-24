@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { Hono, type Context } from "hono";
+import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { runBuyerAgent, runPersonaBatch } from "./ai/buyer.js";
 import { extractListing } from "./ai/listings.js";
@@ -7,6 +9,8 @@ import { tracedLlm } from "./ai/traced-llm.js";
 import type { Commerce } from "./commerce.js";
 import { LIMITS, type Limit, RateLimiter } from "./ratelimit.js";
 import type { StallRegistry } from "./registry.js";
+import { instagramRoutes, loadMedia } from "./instagram.js";
+import { currentRunId } from "./trace.js";
 
 type FetchLike = (url: string | URL, init?: RequestInit) => Promise<Response>;
 
@@ -72,6 +76,33 @@ export function sellerApi(
 
   const store = (c: Context<StallEnv>) => c.get("commerce").store;
 
+  /** AI reads a post (photo and/or caption) into a schema-checked draft. Nothing goes live until the seller approves. */
+  const createDraft = async (
+    c: Context<StallEnv>,
+    input: { image?: { mimeType: string; base64: string }; caption: string; source?: string },
+  ) => {
+    const s = store(c);
+    const draft = await extractListing(tracedLlm(opts.llm!, s, "Listing extractor reads the post"), input);
+    const product = s.addProduct({
+      title: draft.title,
+      description: draft.description,
+      price: draft.price_usd ?? "",
+      currency: "USD",
+      stock: 1,
+      shipsTo: ["US", "GB", "CA", "AU"],
+      shippingDays: 7,
+      tags: draft.tags,
+      materials: draft.materials,
+      colors: draft.colors,
+      needsReview: draft.needs_review,
+      sourceCaption: input.caption,
+      sourcePermalink: input.source || undefined,
+      imageUrl: input.image ? `data:${input.image.mimeType};base64,${input.image.base64}` : undefined,
+      status: "draft",
+    });
+    return { product, draft };
+  };
+
   api.get("/stall", (c) => {
     const s = store(c);
     return c.json({
@@ -107,26 +138,24 @@ export function sellerApi(
       image = { mimeType: file.type, base64: Buffer.from(await file.arrayBuffer()).toString("base64") };
     }
 
-    const s = store(c);
-    const draft = await extractListing(tracedLlm(opts.llm, s, "Listing extractor reads the post"), { image, caption });
-    const product = s.addProduct({
-      title: draft.title,
-      description: draft.description,
-      price: draft.price_usd ?? "",
-      currency: "USD",
-      stock: 1,
-      shipsTo: ["US", "GB", "CA", "AU"],
-      shippingDays: 7,
-      tags: draft.tags,
-      materials: draft.materials,
-      colors: draft.colors,
-      needsReview: draft.needs_review,
-      sourceCaption: caption,
-      sourcePermalink: source || undefined,
-      imageUrl: image ? `data:${image.mimeType};base64,${image.base64}` : undefined,
-      status: "draft",
-    });
-    return c.json({ product, draft });
+    return c.json(await createDraft(c, { image, caption, source }));
+  });
+
+  // Import one Instagram post: download the photo and caption, then draft it like any other post.
+  api.post("/instagram/import", async (c) => {
+    if (!opts.llm) return noAi(c);
+    const blocked = limited(c, LIMITS.extract);
+    if (blocked) return blocked;
+    const { mediaId } = await c.req.json<{ mediaId?: string }>();
+    if (!mediaId) return c.json({ error: "Pick a post to import." }, 400);
+    const media = await loadMedia(store(c), mediaId);
+    return c.json(
+      await createDraft(c, {
+        image: { mimeType: media.mimeType, base64: media.bytes.toString("base64") },
+        caption: media.caption,
+        source: media.permalink,
+      }),
+    );
   });
 
   api.patch("/products/:id", async (c) => {
@@ -221,14 +250,58 @@ export function sellerApi(
     return c.json(result);
   });
 
+  // Same assistant, streamed: one server-sent event per tool call, then the summary.
+  api.post("/console/stream", async (c) => {
+    if (!opts.llm) return noAi(c);
+    const blocked = limited(c, LIMITS.shop);
+    if (blocked) return blocked;
+    const body = await c.req.json<{ goal?: string; payment_method?: "paypal" | "sandbox_test_card" }>();
+    const goal = body.goal?.trim().slice(0, 500);
+    if (!goal) return c.json({ error: "Tell the assistant what you're looking for." }, 400);
+    const s = store(c);
+    const runId = currentRunId();
+    return streamSSE(c, async (stream) => {
+      await stream.writeSSE({ event: "start", data: JSON.stringify({ runId, seller: s.seller.name }) });
+      try {
+        const result = await runBuyerAgent({
+          llm: tracedLlm(opts.agentLlm ?? opts.llm!, s, "Shopping assistant"),
+          mcpUrl: mcpUrl(c.get("stallId")),
+          goal,
+          paymentMethod: body.payment_method,
+          fetchImpl: opts.fetchImpl,
+          onStep: (step) => void stream.writeSSE({ event: "step", data: JSON.stringify(step) }),
+        });
+        await stream.writeSSE({ event: "done", data: JSON.stringify({ summary: result.summary, orderId: result.orderId }) });
+      } catch (err) {
+        console.error(err);
+        await stream.writeSSE({ event: "error", data: JSON.stringify({ error: friendly((err as Error).message) }) });
+      }
+    });
+  });
+
   // Batch of simulated test shoppers (labelled as simulated everywhere they appear).
   api.post("/simulate", async (c) => {
     const blocked = limited(c, LIMITS.simulate);
     if (blocked) return blocked;
     const { count = 20 } = await c.req.json<{ count?: number }>().catch(() => ({ count: 20 }));
     const n = Math.min(Math.max(1, Math.floor(count)), 40);
-    return c.json(await runPersonaBatch(n, mcpUrl(c.get("stallId")), opts.fetchImpl));
+    const s = store(c);
+    const factsKnown = s.facts.size;
+    const result = await runPersonaBatch(n, mcpUrl(c.get("stallId")), opts.fetchImpl);
+    s.batches.push({
+      id: `b_${randomUUID().slice(0, 8)}`,
+      at: new Date().toISOString(),
+      count: n,
+      purchased: result.outcomes.purchased,
+      abandonedUnanswered: result.outcomes.abandoned_unanswered,
+      factsKnown,
+    });
+    return c.json(result);
   });
+
+  api.get("/batches", (c) => c.json(store(c).batches));
+
+  api.route("/instagram", instagramRoutes({ limited: (c) => limited(c, LIMITS.instagram, false) }));
 
   api.post("/demo/reset", (c) => {
     registry.reset(c.get("stallId"));

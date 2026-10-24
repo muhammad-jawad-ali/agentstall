@@ -44,6 +44,8 @@ export async function runBuyerAgent(opts: {
   paymentMethod?: "paypal" | "sandbox_test_card";
   fetchImpl?: FetchLike;
   maxSteps?: number;
+  /** Called as each tool call finishes, so the UI can show the agent working live. */
+  onStep?: (step: AgentStep) => void;
 }): Promise<{ steps: AgentStep[]; summary: string; orderId?: string }> {
   const { client, call } = await connect(opts.mcpUrl, "agentstall-buyer-console", opts.fetchImpl);
   const steps: AgentStep[] = [];
@@ -65,7 +67,9 @@ export async function runBuyerAgent(opts: {
       const responses = [];
       for (const tc of toolCalls) {
         const result = await call(tc.name, tc.args);
-        steps.push({ tool: tc.name, args: tc.args, result });
+        const step = { tool: tc.name, args: tc.args, result };
+        steps.push(step);
+        opts.onStep?.(step);
         const id = (result as { orderId?: string })?.orderId;
         if (tc.name === "create_checkout" && id) orderId = id;
         responses.push({ functionResponse: { name: tc.name, response: { result } } });
