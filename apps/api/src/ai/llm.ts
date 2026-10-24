@@ -156,11 +156,12 @@ export function toGeminiSchema(schema: ZodType<unknown>): Record<string, unknown
   return rest;
 }
 
-/** `main` for photo extraction; `fast` (Flash-Lite: ~1s per call, higher free quota) for the stall-keeper and buyer agent. */
+/** `main` for photo extraction; `fast` for the stall-keeper and buyer agent. Both default to Flash-Lite (~1–3s per call, higher free quota). */
 export function llmFromEnv(env: NodeJS.ProcessEnv = process.env): { main: Llm; fast: Llm } | undefined {
   if (!env.GEMINI_API_KEY) return undefined;
   return {
-    main: new GeminiLlm(env.GEMINI_API_KEY, [env.GEMINI_MODEL || "gemini-flash-latest", env.GEMINI_FAST_MODEL || "gemini-flash-lite-latest"]),
+    // Flash-Lite by default: the bigger Flash model is often overloaded on the free tier. Set GEMINI_MODEL to try another model first.
+    main: new GeminiLlm(env.GEMINI_API_KEY, [...(env.GEMINI_MODEL ? [env.GEMINI_MODEL] : []), env.GEMINI_FAST_MODEL || "gemini-flash-lite-latest"]),
     fast: new GeminiLlm(env.GEMINI_API_KEY, env.GEMINI_FAST_MODEL || "gemini-flash-lite-latest"),
   };
 }
