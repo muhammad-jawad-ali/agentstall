@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: openstall-api
+    runtime: node
+    plan: starter # always-on; free instances sleep and would break the judged demo
+    buildCommand: npm ci
+    startCommand: npm start -w @openstall/api
+    healthCheckPath: /health
+    envVars:
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
