@@ -12,7 +12,8 @@ AgentStall turns a seller's product photos and captions into a store that any AI
 |---|---|
 | `packages/paypal` | `PayPalGateway` (sandbox + mock), Orders v2, webhook verification, agent attribution on `custom_id` |
 | `apps/api` | Hono service: public MCP endpoint `/mcp` for buyer agents (`search_products`, `get_product`, `ask_seller`, `create_checkout`, `get_order_status`), verified `POST /webhooks/paypal`, checkout return, seller read API |
-| `apps/web` | *(Day 2)* Seller onboarding and the AG Studio Agent Desk, forked from [paypaldev/hackathon-paypal-ag-grid-boilerplate](https://github.com/paypaldev/hackathon-paypal-ag-grid-boilerplate) |
+| `apps/web` | Next.js app: seller onboarding (`/sell`), Agent Desk with AG Grid (`/desk`), hosted Buyer Agent Console (`/console`). Proxies `/api` to the API service |
+| `demo-photos` | Openly licensed demo product photos and captions ([credits](demo-photos/CREDITS.md)) |
 | `scripts/day1` | Sandbox verification checks (see [docs/DAY1.md](docs/DAY1.md)) |
 
 ## Quickstart
@@ -21,10 +22,11 @@ Requires Node 20+.
 
 ```bash
 npm install
-cp .env.example .env   # add your PayPal sandbox app credentials
+cp .env.example .env   # add GEMINI_API_KEY (free at aistudio.google.com); PayPal credentials optional, mock mode without them
 npm test
-npm run day1           # runs the sandbox checks
-npm run dev:api        # http://localhost:8787/health
+npm run dev:api        # API + MCP endpoint on http://localhost:8787
+npm run dev:web        # web app on http://localhost:3000 (second terminal)
+npm run day1           # PayPal sandbox checks, once credentials are in .env
 ```
 
 ## PayPal surfaces

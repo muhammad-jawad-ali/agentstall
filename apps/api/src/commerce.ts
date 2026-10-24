@@ -78,6 +78,25 @@ export class Commerce {
     gateway.onEvent((event) => this.handlePayPalEvent(event));
   }
 
+  /**
+   * After the seller teaches a new fact, re-ask every open question: the ones the new fact answers
+   * (in any phrasing) close, so the seller answers each real question once.
+   */
+  async resolveOpenQuestions(): Promise<number> {
+    const open = [...this.store.questions.values()].filter((q) => q.status === "open");
+    let closed = 0;
+    for (const q of open) {
+      const product = q.productId ? this.store.products.get(q.productId) : undefined;
+      const result = await this.answerer.answer(q.text, this.store, product);
+      if (result) {
+        q.status = "answered";
+        q.factId = result.source.match(/fact:(f_[\w-]+)/)?.[1];
+        closed++;
+      }
+    }
+    return closed;
+  }
+
   /** Swap in a fresh store (demo reset). */
   reset(store: Store) {
     this.store = store;

@@ -17,7 +17,9 @@
     "test": "vitest run",
     "dev:api": "npm run dev -w @agentstall/api",
     "day1": "tsx --env-file-if-exists=.env scripts/day1/run.ts",
-    "day1:capture": "tsx --env-file-if-exists=.env scripts/day1/capture.ts"
+    "day1:capture": "tsx --env-file-if-exists=.env scripts/day1/capture.ts",
+    "dev:web": "npm run dev -w @agentstall/web",
+    "build:web": "npm run build -w @agentstall/web"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",
@@ -26,5 +28,9 @@
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
+  },
+  "overrides": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   }
 }

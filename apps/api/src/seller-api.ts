@@ -125,14 +125,8 @@ export function sellerApi(
     const { answer } = await c.req.json<{ answer?: string }>();
     if (!answer?.trim()) return c.json({ error: "answer required" }, 400);
     const fact = store().answerQuestion(c.req.param("id"), answer.trim());
-    // Close duplicates of the same question so the queue reflects what's still unknown.
-    for (const q of store().questions.values()) {
-      if (q.status === "open" && q.text.trim().toLowerCase() === fact.question.trim().toLowerCase()) {
-        q.status = "answered";
-        q.factId = fact.id;
-      }
-    }
-    return c.json(fact);
+    const alsoAnswered = await commerce.resolveOpenQuestions();
+    return c.json({ ...fact, alsoAnswered });
   });
 
   // Agent funnel: furthest stage each agent session reached. Simulated personas are counted separately.

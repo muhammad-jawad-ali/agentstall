@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { Hono } from "hono";
 import { MockGateway, type PayPalEvent } from "@agentstall/paypal";
 import type { Commerce } from "./commerce.js";
@@ -13,7 +14,27 @@ export function createApp(commerce: Commerce, opts: { llm?: Llm; agentLlm?: Llm 
   // Internal agents (Buyer Console, personas) reach the MCP endpoint in-process, exactly as external agents do over HTTP.
   const inProcessFetch = (url: string | URL, init?: RequestInit) => Promise.resolve(app.fetch(new Request(url, init)));
 
-  app.get("/health", (c) => c.json({ ok: true, service: "agentstall-api", paypal: gateway.mode }));
+  app.get("/health", (c) =>
+    c.json({ ok: true, service: "agentstall-api", paypal: gateway.mode, ai: opts.llm ? "gemini" : "off" }),
+  );
+
+  // Openly licensed demo photos (see demo-photos/CREDITS.md) for the onboarding demo.
+  const photosDir = new URL("../../../demo-photos/", import.meta.url);
+  app.get("/api/demo/photos", async (c) => {
+    const lines = (await readFile(new URL("captions.txt", photosDir), "utf8").catch(() => "")).split("\n");
+    return c.json(
+      lines
+        .map((l) => l.split(" | "))
+        .filter(([file, caption]) => file && caption)
+        .map(([file, caption]) => ({ file: file.trim(), caption: caption.trim(), url: `/demo-photos/${file.trim()}` })),
+    );
+  });
+  app.get("/demo-photos/:file", async (c) => {
+    const file = c.req.param("file");
+    if (!/^\d{2}\.jpg$/.test(file)) return c.notFound();
+    const data = await readFile(new URL(file, photosDir)).catch(() => null);
+    return data ? c.body(data, 200, { "content-type": "image/jpeg", "cache-control": "public, max-age=86400" }) : c.notFound();
+  });
 
   app.all("/mcp", (c) => mcp(c.req.raw));
 

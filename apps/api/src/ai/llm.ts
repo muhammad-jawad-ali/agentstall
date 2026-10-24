@@ -44,11 +44,16 @@ const API = "https://generativelanguage.googleapis.com/v1beta";
 
 /** Gemini over REST with structured output. Validates every JSON response and retries once with the error. */
 export class GeminiLlm implements Llm {
+  private readonly models: string[];
+
+  /** `models` is tried in order: if one is overloaded, rate-limited or slow, the next takes over. */
   constructor(
     private readonly apiKey: string,
-    private readonly model = "gemini-flash-latest",
+    models: string | string[] = "gemini-flash-lite-latest",
     private readonly fetchImpl: typeof fetch = fetch,
-  ) {}
+  ) {
+    this.models = Array.isArray(models) ? models : [models];
+  }
 
   async generateJson<T>({ system, parts, schema }: { system: string; parts: Part[]; schema: ZodType<T> }): Promise<T> {
     const jsonSchema = toGeminiSchema(schema);
@@ -98,23 +103,33 @@ export class GeminiLlm implements Llm {
   }
 
   private async call(body: unknown): Promise<GeminiResponse> {
-    // Free tier: 429 (quota) and 503 (overloaded) are common, so back off and retry a few times.
-    for (let attempt = 0; ; attempt++) {
-      const res = await this.fetchImpl(`${API}/models/${this.model}:generateContent`, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-goog-api-key": this.apiKey },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(60_000),
-      });
-      if (res.ok) return (await res.json()) as GeminiResponse;
-      const detail = await res.text();
-      if ((res.status === 429 || res.status === 503) && attempt < 3) {
+    let lastError: LlmError | undefined;
+    for (const [i, model] of this.models.entries()) {
+      const isLast = i === this.models.length - 1;
+      // Free tier: 429 (quota) and 503 (overloaded) are common. Retry briefly, then fall back to the next model.
+      for (let attempt = 0; attempt < (isLast ? 3 : 2); attempt++) {
+        let res: Response;
+        try {
+          res = await this.fetchImpl(`${API}/models/${model}:generateContent`, {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-goog-api-key": this.apiKey },
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(isLast ? 60_000 : 25_000),
+          });
+        } catch (err) {
+          lastError = new LlmError(`Gemini ${model}: ${(err as Error).message}`);
+          break; // timeout: don't wait twice on a slow model
+        }
+        if (res.ok) return (await res.json()) as GeminiResponse;
+        const detail = await res.text();
+        lastError = new LlmError(`Gemini ${model} ${res.status}: ${detail.slice(0, 300)}`, res.status);
+        if (res.status !== 429 && res.status !== 503) throw lastError;
         const hinted = Number(detail.match(/"retryDelay":\s*"(\d+)s"/)?.[1]);
-        await sleep(Math.min(Number.isFinite(hinted) ? hinted * 1000 : 2000 * 2 ** attempt, 20_000));
-        continue;
+        await sleep(Math.min(Number.isFinite(hinted) ? hinted * 1000 : 1500 * 2 ** attempt, isLast ? 20_000 : 4_000));
       }
-      throw new LlmError(`Gemini ${res.status}: ${detail.slice(0, 300)}`, res.status);
+      if (!isLast) console.warn(`Gemini ${model} unavailable, falling back: ${lastError?.message.slice(0, 120)}`);
     }
+    throw lastError ?? new LlmError("No Gemini model configured");
   }
 }
 
@@ -145,7 +160,7 @@ export function toGeminiSchema(schema: ZodType<unknown>): Record<string, unknown
 export function llmFromEnv(env: NodeJS.ProcessEnv = process.env): { main: Llm; fast: Llm } | undefined {
   if (!env.GEMINI_API_KEY) return undefined;
   return {
-    main: new GeminiLlm(env.GEMINI_API_KEY, env.GEMINI_MODEL || "gemini-flash-latest"),
+    main: new GeminiLlm(env.GEMINI_API_KEY, [env.GEMINI_MODEL || "gemini-flash-latest", env.GEMINI_FAST_MODEL || "gemini-flash-lite-latest"]),
     fast: new GeminiLlm(env.GEMINI_API_KEY, env.GEMINI_FAST_MODEL || "gemini-flash-lite-latest"),
   };
 }
