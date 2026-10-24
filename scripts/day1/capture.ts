@@ -1,5 +1,5 @@
 /** Captures an order after the sandbox buyer approved it: `npm run day1:capture -- <ORDER_ID>`. */
-import { PayPalError, captureOrder, clientFromEnv } from "@openstall/paypal";
+import { PayPalError, captureOrder, clientFromEnv } from "@agentstall/paypal";
 
 const orderId = process.argv[2];
 if (!orderId) {

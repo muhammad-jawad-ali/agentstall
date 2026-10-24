@@ -1,8 +1,8 @@
-# OpenStall
+# AgentStall
 
 > Working name. Make social-only sellers buyable by any AI shopping agent, paid through PayPal.
 
-OpenStall turns a seller's product photos and captions into a store that any AI shopping agent can find, question and pay through PayPal. A seller dashboard shows what agents asked and why they didn't buy, and one answer from the seller teaches every future agent.
+AgentStall turns a seller's product photos and captions into a store that any AI shopping agent can find, question and pay through PayPal. A seller dashboard shows what agents asked and why they didn't buy, and one answer from the seller teaches every future agent.
 
 **Status:** early build. Without sandbox credentials the app runs on a mock PayPal gateway (see [docs/BUILD-WITHOUT-CREDENTIALS.md](docs/BUILD-WITHOUT-CREDENTIALS.md)).
 

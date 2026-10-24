@@ -1,10 +1,10 @@
 services:
   - type: web
-    name: openstall-api
+    name: agentstall-api
     runtime: node
     plan: starter # always-on; free instances sleep and would break the judged demo
     buildCommand: npm ci
-    startCommand: npm start -w @openstall/api
+    startCommand: npm start -w @agentstall/api
     healthCheckPath: /health
     envVars:
       - key: PAYPAL_CLIENT_ID

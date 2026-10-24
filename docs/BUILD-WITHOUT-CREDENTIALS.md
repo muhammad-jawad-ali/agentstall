@@ -1,6 +1,6 @@
 # Building without PayPal credentials
 
-Until a teammate in a PayPal-supported country joins and shares **sandbox** credentials, OpenStall runs on a **mock PayPal gateway**. Everything else gets built for real. Getting credentials should then mean pasting three values into `.env`, re-running `npm run day1`, and redeploying.
+Until a teammate in a PayPal-supported country joins and shares **sandbox** credentials, AgentStall runs on a **mock PayPal gateway**. Everything else gets built for real. Getting credentials should then mean pasting three values into `.env`, re-running `npm run day1`, and redeploying.
 
 ## How the switch works
 

@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { MockGateway, type PayPalGateway } from "@openstall/paypal";
+import { MockGateway, type PayPalGateway } from "@agentstall/paypal";
 import { createApp } from "../src/app.js";
 import { Commerce } from "../src/commerce.js";
 import { seedDemoStore } from "../src/store.js";
 
-const PUBLIC_URL = "http://openstall.test";
+const PUBLIC_URL = "http://agentstall.test";
 
 function setup(gateway: PayPalGateway = new MockGateway({ publicUrl: PUBLIC_URL, eventDelayMs: 0 })) {
   const commerce = new Commerce(seedDemoStore(), gateway, { publicUrl: PUBLIC_URL });

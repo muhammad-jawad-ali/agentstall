@@ -13,7 +13,7 @@ import {
   clientFromEnv,
   createOrder,
   type PayPalClient,
-} from "@openstall/paypal";
+} from "@agentstall/paypal";
 
 type Result = { status: "PASS" | "FAIL" | "SKIP" | "MANUAL"; detail: string };
 type Check = { id: string; name: string; run: () => Promise<Result> };
@@ -37,7 +37,7 @@ const checks: Check[] = [
     run: async () => {
       const order = await createOrder(paypal, {
         amount: "12.00",
-        description: "OpenStall day-1 check",
+        description: "AgentStall day-1 check",
         customId: agentCustomId("day1-check", `s_${Date.now()}`),
         card: SANDBOX_TEST_CARD,
       });
@@ -53,8 +53,8 @@ const checks: Check[] = [
     run: async () => {
       const order = await createOrder(paypal, {
         amount: "9.00",
-        description: "OpenStall approve-link check",
-        returnUrl: "https://example.com/openstall/return",
+        description: "AgentStall approve-link check",
+        returnUrl: "https://example.com/agentstall/return",
       });
       const link = approveLink(order);
       if (!link) return { status: "FAIL", detail: `order ${order.id} has no approval link` };
@@ -96,7 +96,7 @@ const checks: Check[] = [
       const names = Object.keys(tools);
       const opts = { toolCallId: "day1", messages: [] };
       const created = await tools.create_product.execute!(
-        { name: "Day-1 batik scarf", type: "PHYSICAL", description: "OpenStall toolkit check" },
+        { name: "Day-1 batik scarf", type: "PHYSICAL", description: "AgentStall toolkit check" },
         opts,
       );
       const listed = await tools.list_products.execute!({ page: 1, page_size: 5 }, opts);
@@ -136,7 +136,7 @@ const checks: Check[] = [
 ];
 
 async function listMcpTools(headers: Record<string, string>): Promise<string[]> {
-  const client = new Client({ name: "openstall-day1", version: "0.1.0" });
+  const client = new Client({ name: "agentstall-day1", version: "0.1.0" });
   const transport = new StreamableHTTPClientTransport(new URL(MCP_URL), { requestInit: { headers } });
   await client.connect(transport);
   try {

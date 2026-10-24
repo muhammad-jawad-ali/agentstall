@@ -19,7 +19,7 @@ export interface ChatTurn {
   parts: unknown[];
 }
 
-/** The small slice of an LLM that OpenStall uses. Gemini in production, a fake in tests. */
+/** The small slice of an LLM that AgentStall uses. Gemini in production, a fake in tests. */
 export interface Llm {
   generateJson<T>(opts: { system: string; parts: Part[]; schema: ZodType<T> }): Promise<T>;
   /** One step of a tool-using conversation: either tool calls or final text. */

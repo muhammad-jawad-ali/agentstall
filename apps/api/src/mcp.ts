@@ -16,7 +16,7 @@ function json(value: unknown) {
 }
 
 function buildServer(commerce: Commerce, sessionId: () => string): McpServer {
-  const server = new McpServer({ name: "openstall", version: "0.1.0" });
+  const server = new McpServer({ name: "agentstall", version: "0.1.0" });
   const ctx = (): AgentContext => ({
     sessionId: sessionId(),
     agent: server.server.getClientVersion()?.name ?? "unknown-agent",

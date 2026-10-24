@@ -26,7 +26,7 @@ export interface CatalogProductInput {
 }
 
 /**
- * Everything OpenStall needs from PayPal. The sandbox implementation talks to PayPal;
+ * Everything AgentStall needs from PayPal. The sandbox implementation talks to PayPal;
  * the mock stands in until sandbox credentials are available.
  */
 export interface PayPalGateway {

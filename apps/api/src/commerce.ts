@@ -4,7 +4,7 @@ import {
   SANDBOX_TEST_CARD,
   agentCustomId,
   approveLink,
-} from "@openstall/paypal";
+} from "@agentstall/paypal";
 import { type Order, type Product, type Store, now } from "./store.js";
 
 export interface AgentContext {

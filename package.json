@@ -1,5 +1,5 @@
 {
-  "name": "openstall",
+  "name": "agentstall",
   "version": "0.1.0",
   "private": true,
   "description": "Make social-only sellers buyable by any AI shopping agent, paid through PayPal.",
@@ -15,7 +15,7 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "dev:api": "npm run dev -w @openstall/api",
+    "dev:api": "npm run dev -w @agentstall/api",
     "day1": "tsx --env-file-if-exists=.env scripts/day1/run.ts",
     "day1:capture": "tsx --env-file-if-exists=.env scripts/day1/capture.ts"
   },

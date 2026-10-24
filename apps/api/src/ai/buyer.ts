@@ -45,7 +45,7 @@ export async function runBuyerAgent(opts: {
   fetchImpl?: FetchLike;
   maxSteps?: number;
 }): Promise<{ steps: AgentStep[]; summary: string; orderId?: string }> {
-  const { client, call } = await connect(opts.mcpUrl, "openstall-buyer-console", opts.fetchImpl);
+  const { client, call } = await connect(opts.mcpUrl, "agentstall-buyer-console", opts.fetchImpl);
   const steps: AgentStep[] = [];
   let orderId: string | undefined;
   try {

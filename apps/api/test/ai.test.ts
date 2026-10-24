@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MockGateway } from "@openstall/paypal";
+import { MockGateway } from "@agentstall/paypal";
 import type { ZodType } from "zod";
 import type { ChatTurn, Llm, Part, ToolCall } from "../src/ai/llm.js";
 import { StallKeeper } from "../src/ai/stallkeeper.js";
@@ -112,6 +112,6 @@ describe("agents", () => {
     const { app, commerce } = setup(llm);
     const res = await (await app.request("/api/console/run", post({ goal: "Buy a silk scarf", payment_method: "sandbox_test_card" }))).json();
     expect(res.steps.map((s: { tool: string }) => s.tool)).toEqual(["search_products", "create_checkout"]);
-    expect(commerce.store.orders.get(res.orderId)?.agent).toBe("openstall-buyer-console");
+    expect(commerce.store.orders.get(res.orderId)?.agent).toBe("agentstall-buyer-console");
   });
 });

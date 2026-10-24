@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { MockGateway, type PayPalEvent } from "@openstall/paypal";
+import { MockGateway, type PayPalEvent } from "@agentstall/paypal";
 import type { Commerce } from "./commerce.js";
 import type { Llm } from "./ai/llm.js";
 import { createMcpHandler } from "./mcp.js";
@@ -13,7 +13,7 @@ export function createApp(commerce: Commerce, opts: { llm?: Llm; agentLlm?: Llm 
   // Internal agents (Buyer Console, personas) reach the MCP endpoint in-process, exactly as external agents do over HTTP.
   const inProcessFetch = (url: string | URL, init?: RequestInit) => Promise.resolve(app.fetch(new Request(url, init)));
 
-  app.get("/health", (c) => c.json({ ok: true, service: "openstall-api", paypal: gateway.mode }));
+  app.get("/health", (c) => c.json({ ok: true, service: "agentstall-api", paypal: gateway.mode }));
 
   app.all("/mcp", (c) => mcp(c.req.raw));
 
@@ -45,7 +45,7 @@ export function createApp(commerce: Commerce, opts: { llm?: Llm; agentLlm?: Llm 
     sellerApi(commerce, {
       llm: opts.llm,
       agentLlm: opts.agentLlm,
-      mcpUrl: "http://openstall.internal/mcp",
+      mcpUrl: "http://agentstall.internal/mcp",
       fetchImpl: inProcessFetch,
       reseed: () => commerce.reset(seedDemoStore()),
     }),

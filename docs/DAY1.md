@@ -7,11 +7,11 @@ Numbers match the master plan's Day-1 table. ✅ = done in the repo already.
 | # | Step | How |
 |---|---|---|
 | 1 | **Sign up at developer.paypal.com with your real details** | If Pakistan is blocked, do **not** use a VPN or a fake country. Post on the Devpost forum / PayPal Discord asking for the sanctioned route, or a teammate in a supported country owns the account and shares sandbox app credentials |
-| 2a | Create a sandbox REST app | Dashboard → Apps & Credentials → Sandbox → Create App. Copy Client ID + Secret into `openstall/.env` |
+| 2a | Create a sandbox REST app | Dashboard → Apps & Credentials → Sandbox → Create App. Copy Client ID + Secret into `agentstall/.env` |
 | 2b | Enable **Transaction search** on the app | App settings → Features (needed for check #5) |
 | 10a | *(Optional)* Create a second sandbox **Business** account | Dashboard → Sandbox → Accounts. Put its email in `PAYPAL_SECOND_MERCHANT_EMAIL` |
 | 11 | Confirm the seller persona's market can receive PayPal | paypal.com/webapps/mpp/country-worldwide. If Malaysia/Philippines/Indonesia is unclear, switch the persona to a US/UK maker |
-| 12 | **Decide the name.** "OpenStall" collides with **openstall.ai** (a live AI-agent marketplace, GitHub org `openstall-ai`) | Pick a new name before the repo goes public |
+| 12 | ✅ Name decided: **AgentStall** (renamed from "OpenStall", which clashed with openstall.ai) | Done |
 | 14 | Pick the AI provider and set a hard monthly spend cap | Put the key in `AI_API_KEY` |
 | 15 | Join the PayPal Discord; install the PayPal AI-Toolkit and APIMatic Context plugins in your coding agent | `npx context-plugins install paypal` |
 

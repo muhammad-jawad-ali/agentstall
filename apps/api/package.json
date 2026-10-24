@@ -1,5 +1,5 @@
 {
-  "name": "@openstall/api",
+  "name": "@agentstall/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
   "dependencies": {
     "@hono/node-server": "^1.13.0",
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "@openstall/paypal": "*",
+    "@agentstall/paypal": "*",
     "hono": "^4.6.0",
     "tsx": "^4.23.15",
     "zod": "^3.25.76",

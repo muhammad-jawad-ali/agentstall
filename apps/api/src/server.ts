@@ -1,5 +1,5 @@
 import { serve } from "@hono/node-server";
-import { gatewayFromEnv } from "@openstall/paypal";
+import { gatewayFromEnv } from "@agentstall/paypal";
 import { llmFromEnv } from "./ai/llm.js";
 import { StallKeeper } from "./ai/stallkeeper.js";
 import { createApp } from "./app.js";
@@ -21,5 +21,5 @@ if (gateway.mode === "mock") {
 if (!llm) console.warn("AI: GEMINI_API_KEY not set; extractor and Buyer Console are disabled, stall-keeper uses keyword matching.");
 
 serve({ fetch: createApp(commerce, { llm: llm?.main, agentLlm: llm?.fast }).fetch, port }, () => {
-  console.log(`openstall-api on ${publicUrl} (paypal: ${gateway.mode}, ai: ${llm ? "gemini" : "off"}); MCP endpoint ${publicUrl}/mcp`);
+  console.log(`agentstall-api on ${publicUrl} (paypal: ${gateway.mode}, ai: ${llm ? "gemini" : "off"}); MCP endpoint ${publicUrl}/mcp`);
 });
